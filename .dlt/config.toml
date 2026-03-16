@@ -1,0 +1,12 @@
+# DLT pipeline configuration for KenQuest.
+# See: https://dlthub.com/docs/reference/performance
+
+[extract]
+# Number of parallel threads for extracting parallelized=True resources.
+# Each source (wikipedia, arxiv, openstax, opentextbook, doab) gets its own
+# thread. The wikipedia linked-article transformer also uses this pool.
+workers = 5
+
+[load]
+# Parallel threads for loading extracted data into DuckDB.
+workers = 4

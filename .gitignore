@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+.uv/
+*.egg-info/
+dist/
+build/
+wheels/
+.ruff_cache/
+.pyrefly_cache/
+
+# DLT — ignore runtime state and secrets, but keep config
+.dlt/pipelines/
+.dlt/schemas/
+.dlt/secrets.toml
+
+# Data (use Docker volumes in production)
+data/
+
+# Environment
+.env
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+.pytest_cache/
+htmlcov/
+.coverage
