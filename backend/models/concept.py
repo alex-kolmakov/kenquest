@@ -1,6 +1,6 @@
 """Concept domain models."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 
 from pydantic import BaseModel, Field
@@ -20,7 +20,7 @@ class Concept(BaseModel):
     description: str
     difficulty: int = Field(ge=1, le=5)
     source_refs: list[str] = []
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class PrerequisiteEdge(BaseModel):

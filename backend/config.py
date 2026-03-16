@@ -22,8 +22,16 @@ class Settings(BaseSettings):
     # Embedding model (fixed for vector index stability)
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
 
-    # Ingestion / extraction limits
-    max_concepts: int = 50
+    # FalkorDB (graph traversal + visualization)
+    falkordb_host: str = "localhost"
+    falkordb_port: int = 6379
+
+    # Max concepts per chunk sent to LLM (keeps prompts focused)
+    max_concepts_per_chunk: int = 10
+
+    # Parallel LLM workers for graph building (intra-tier batches run concurrently).
+    # Raise for faster builds; lower to avoid 429 rate-limit errors.
+    graph_builder_workers: int = 4
 
     # Mastery threshold
     mastery_threshold: float = 0.7

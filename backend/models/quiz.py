@@ -1,6 +1,6 @@
 """Quiz domain models."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
@@ -25,7 +25,7 @@ class QuizSession(BaseModel):
     questions: list[QuizQuestion]
     attempts: list[QuizAttempt] = []
     passed: bool = False
-    started_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     completed_at: datetime | None = None
 
     @property
