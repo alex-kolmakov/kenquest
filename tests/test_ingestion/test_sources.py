@@ -253,7 +253,12 @@ def test_openstax_yields_chapters(mock_cls: MagicMock) -> None:
 
     col_resp = mock_resp(text=COLLECTION_XML, status=200)
     mod_resp = mock_resp(text=MODULE_CNXML, status=200)
-    client.get.side_effect = [col_resp, mod_resp, mod_resp]  # collection + 2 modules
+    client.get.side_effect = [
+        col_resp,
+        mod_resp,
+        mod_resp,
+        mod_resp,
+    ]  # collection + 3 modules (2 in ch1, 1 in ch2)
 
     results = list(_openstax_resource("marine biology", max_chapters=2))
     assert len(results) >= 1

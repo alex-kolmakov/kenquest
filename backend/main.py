@@ -15,7 +15,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # nginx reverse-proxy is the public boundary
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -28,4 +28,7 @@ app.include_router(progress.router, prefix="/api")
 
 @app.get("/api/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok", "model": settings.llm_model}
+    return {
+        "status": "ok",
+        "model": settings.llm_model,
+    }  # model shown in dev UI only; restrict in prod

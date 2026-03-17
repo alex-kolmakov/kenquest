@@ -1,19 +1,21 @@
 """Ingestion orchestrator — all sources run in parallel via DLT.
 
-All five sources are passed to a single pipeline.run() call. DLT's extract
+All sources are passed to a single pipeline.run() call. DLT's extract
 stage runs each parallelized resource in its own thread concurrently:
 
   wikipedia  ──┐
-  arxiv      ──┤
-  openstax   ──┼──► pipeline.run([...]) ──► kenquest_raw.raw_materials
-  opentextbook─┤
-  doab       ──┘
+  wikibooks  ──┤
+  openstax   ──┴──► pipeline.run([...]) ──► kenquest_raw.raw_materials
 
 Within each source, work is sequential. Wikipedia linked articles are fetched
 in a loop due to DLT's constraint against multiple same-named resources in one
 source. Inter-source parallelism is handled by parallelized=True per resource.
 
 Sources dropped:
+  - doab               : abstract-only — books are PDF-only on OAPEN, no HTML API
+  - opentextbook       : description-only — inconsistent hosting (Pressbooks, university
+                         sites, custom platforms), no single full-text API
+  - arxiv              : abstracts only — too thin for curriculum use
   - roadmap.sh         : tech-only, wrong for domain-science topics
   - Semantic Scholar   : rate-limited (429) without an API key
   - GitHub general search : noise-to-signal ratio too high
@@ -31,10 +33,8 @@ from typing import Any
 import dlt
 
 from backend.config import settings
-from backend.ingestion.sources.arxiv import arxiv_source
-from backend.ingestion.sources.doab import doab_source
 from backend.ingestion.sources.openstax import openstax_source
-from backend.ingestion.sources.opentextbook import opentextbook_source
+from backend.ingestion.sources.wikibooks import wikibooks_source
 from backend.ingestion.sources.wikipedia import wikipedia_source
 
 logger = logging.getLogger(__name__)
@@ -76,10 +76,8 @@ def run_ingestion(
 
     sources = [
         wikipedia_source(topic=topic_query, max_linked=8),
-        arxiv_source(topic=topic_query, max_results=5),
-        openstax_source(topic=topic_query, max_chapters=6),
-        opentextbook_source(topic=topic_query, max_books=4),
-        doab_source(topic=topic_query, max_books=4),
+        wikibooks_source(topic=topic_query, max_books=3, max_chapters_per_book=20),
+        openstax_source(topic=topic_query),
     ]
 
     results: dict[str, int] = {"total": 0}

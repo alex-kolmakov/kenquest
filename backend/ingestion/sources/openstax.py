@@ -20,10 +20,11 @@ import logging
 import re
 from collections.abc import Iterator
 from typing import Any
-from xml.etree import ElementTree as ET
+from xml.etree.ElementTree import Element, ParseError
 
 import dlt
 import httpx
+from defusedxml.ElementTree import fromstring as _xml_fromstring
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +108,7 @@ def _parse_chapters(xml_text: str) -> list[dict[str, Any]]:
                   <module document="m12345"/>
                   ...
     """
-    root = ET.fromstring(xml_text)
+    root = _xml_fromstring(xml_text)
     chapters = []
 
     for unit_el in root.findall(f".//{{{_COL_NS}}}subcollection"):
@@ -154,12 +155,12 @@ def _fetch_module_text(client: httpx.Client, repo: str, module_id: str) -> str:
         return ""
 
     try:
-        root = ET.fromstring(resp.text)
-    except ET.ParseError:
+        root = _xml_fromstring(resp.text)
+    except ParseError:
         return ""
 
     # Extract text, skipping media/image/figure nodes
-    def extract(el: ET.Element) -> list[str]:
+    def extract(el: Element) -> list[str]:
         tag = el.tag.split("}")[-1] if "}" in el.tag else el.tag
         if tag in _SKIP_TAGS:
             return []
@@ -177,13 +178,19 @@ def _fetch_module_text(client: httpx.Client, repo: str, module_id: str) -> str:
 
 
 @dlt.source(name="openstax")
-def openstax_source(topic: str, max_chapters: int = 6) -> Iterator[Any]:
-    """Yield OpenStax textbook chapters matching the topic."""
-    yield _openstax_resource(topic, max_chapters)
+def openstax_source(topic: str) -> Iterator[Any]:
+    """Yield all OpenStax textbook chapters matching the topic."""
+    yield _openstax_resource(topic)
 
 
 @dlt.resource(name="raw_materials", primary_key="id", write_disposition="merge", parallelized=True)
-def _openstax_resource(topic: str, max_chapters: int = 6) -> Iterator[dict[str, Any]]:
+def _openstax_resource(topic: str, max_chapters: int = 0) -> Iterator[dict[str, Any]]:
+    """Yield raw material dicts for OpenStax chapters matching *topic*.
+
+    Args:
+        topic: Topic keyword string for book matching.
+        max_chapters: If >0, cap chapters fetched per book (useful in tests).
+    """
     matching_books = _find_matching_books(topic)
     if not matching_books:
         logger.info("No OpenStax books matched topic '%s'", topic)
@@ -196,34 +203,38 @@ def _openstax_resource(topic: str, max_chapters: int = 6) -> Iterator[dict[str, 
                 continue
 
             chapters = _parse_chapters(xml_text)
-            logger.info(
-                "OpenStax %s: found %d chapters, yielding up to %d",
-                book_title,
-                len(chapters),
-                max_chapters,
-            )
+            if max_chapters > 0:
+                chapters = chapters[:max_chapters]
+            logger.info("OpenStax %s: %d chapters to fetch", book_title, len(chapters))
 
-            for chap in chapters[:max_chapters]:
+            total_chars = 0
+            for chap in chapters:
                 if not chap["module_ids"]:
                     continue
-                # Fetch the first module of the chapter (the intro/overview section)
-                intro_module_id = chap["module_ids"][0]
-                text = _fetch_module_text(client, repo, intro_module_id)
+
+                # Fetch ALL modules in the chapter and concatenate into one document.
+                # Previously only the first (intro) module was fetched — this captures
+                # the full chapter text across all sections.
+                module_texts = [_fetch_module_text(client, repo, mid) for mid in chap["module_ids"]]
+                text = "\n\n".join(t for t in module_texts if t)
 
                 if len(text) < 100:
                     continue
 
                 chapter_title = chap["chapter"]
                 unit_title = chap["unit"]
-                doc_id = f"openstax_{slug}_{intro_module_id}"
+                # Stable ID derived from chapter title (not module id) so re-runs merge cleanly
+                slug_title = re.sub(r"[^a-z0-9]+", "-", chapter_title.lower()).strip("-")
+                doc_id = f"openstax_{slug}_{slug_title}"
 
                 content = f"# {book_title} — {unit_title}: {chapter_title}\n\n{text}"
+                total_chars += len(content)
 
                 yield {
                     "id": doc_id,
                     "topic_id": topic,
                     "source": _SOURCE,
-                    "url": f"https://openstax.org/books/{slug}/pages/{chapter_title.lower().replace(' ', '-')}",
+                    "url": f"https://openstax.org/books/{slug}/pages/{slug_title}",
                     "title": f"{book_title} — {chapter_title}",
                     "content": content,
                     "authors": "OpenStax Contributors",
@@ -231,3 +242,10 @@ def _openstax_resource(topic: str, max_chapters: int = 6) -> Iterator[dict[str, 
                     "license": _LICENSE,
                     "license_url": _LICENSE_URL,
                 }
+
+            logger.info(
+                "OpenStax %s: complete — %d chapters, %d total chars",
+                book_title,
+                len(chapters),
+                total_chars,
+            )

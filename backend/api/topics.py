@@ -1,13 +1,18 @@
 """Topics API — CRUD + pipeline trigger."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+
+from backend.db.duckdb_client import db_dependency
 
 router = APIRouter(tags=["topics"])
 
 
 @router.get("/topics")
-async def list_topics() -> list[dict]:
-    return []
+async def list_topics(conn=Depends(db_dependency)) -> list[dict]:
+    rows = conn.execute(
+        "SELECT id, name, status, concept_count FROM topics ORDER BY name"
+    ).fetchall()
+    return [{"id": r[0], "name": r[1], "status": r[2], "concept_count": r[3] or 0} for r in rows]
 
 
 @router.post("/topics", status_code=202)

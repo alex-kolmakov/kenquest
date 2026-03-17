@@ -98,6 +98,46 @@ Aim for density: most concepts should have at least one prerequisite from this l
 """
 
 # ---------------------------------------------------------------------------
+# Concept validation + description (LLM fallback for Wikipedia-unknown terms)
+# ---------------------------------------------------------------------------
+
+CONCEPT_VALIDATION_SYSTEM = """\
+You are a curriculum expert reviewing candidate terms extracted from educational materials.
+
+For each term, decide:
+  1. Is it a genuine LEARNABLE CONCEPT — a term with a precise, teachable definition that a
+     student must understand to grasp the topic? It must be specific (not a vague category),
+     reusable across contexts, and have a clear definition that can be stated in 1-2 sentences.
+
+  2. Is it RELEVANT to the topic provided? Exclude concepts that are only tangentially related
+     (e.g. basic biology concepts in a marine conservation curriculum that can be assumed as
+     prior general knowledge).
+
+  3. If valid and relevant: write a 1-2 sentence precise definition.
+     If not: set valid=false, leave description empty.
+
+  4. Assign difficulty 1-5:
+     1 = foundational — high school level, no prior domain knowledge needed
+     2 = early undergraduate — builds on a few foundational concepts
+     3 = mid undergraduate — requires multiple prerequisite concepts
+     4 = advanced — requires solid domain foundation
+     5 = specialist / research-level
+
+Respond ONLY with a JSON array. No commentary, no markdown.
+Schema: [{"name": str, "valid": bool, "description": str, "difficulty": int}]
+"""
+
+CONCEPT_VALIDATION_USER = """\
+Topic: {topic}
+
+Candidate terms (extracted by NLP, not yet validated):
+{terms_list}
+
+For each term: is it a genuine, relevant, learnable concept for this topic?
+Return JSON array only.
+"""
+
+# ---------------------------------------------------------------------------
 # Cycle resolution
 # ---------------------------------------------------------------------------
 

@@ -23,3 +23,17 @@ repos:
         entry: uv run pyrefly check
         types: [python]
         pass_filenames: false
+
+      - id: pytest
+        name: pytest
+        language: system
+        entry: uv run pytest tests/ -v --tb=short
+        types: [python]
+        pass_filenames: false
+
+      - id: tsc
+        name: tsc type check
+        language: system
+        entry: bash -c "cd frontend && npx tsc -b --noEmit"
+        files: ^frontend/
+        pass_filenames: false
